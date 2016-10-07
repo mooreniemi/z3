@@ -5,7 +5,7 @@ require_relative '../lib/z3'
 
 class SudokuProblem
   attr_reader :data, :solver,
-    :unary_assertions, :binary_assertions
+    :unary_formulas, :binary_formulas
 
   def initialize(path)
     @data = Pathname(path).read.strip.split("\n").map do |line|
@@ -13,8 +13,8 @@ class SudokuProblem
     end
 
     @solver = Z3::Solver.new
-    @unary_assertions = [over_one, under_nine]
-    @binary_assertions = [same_as_cell]
+    @unary_formulas = [over_one, under_nine]
+    @binary_formulas = [same_as_cell]
   end
 
   def solve!
@@ -60,12 +60,12 @@ class SudokuProblem
 
   def cell_var(cell, i, j)
     v = Z3.Int("cell[#{i + 1}, #{j + 1}]")
-    unary_assertions.each do |predicate|
-      solver.assert predicate.call(v)
+    unary_formulas.each do |formula|
+      solver.assert formula.call(v)
     end
-    binary_assertions.each do |predicate|
+    binary_formulas.each do |formula|
       next if cell.nil?
-      solver.assert predicate.call(v, cell)
+      solver.assert formula.call(v, cell)
     end
     v
   end
