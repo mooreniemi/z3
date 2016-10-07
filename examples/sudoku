@@ -1,62 +1,84 @@
 #!/usr/bin/env ruby
 
+require 'pathname'
+require_relative '../lib/z3'
 
-require "pathname"
-require_relative "../lib/z3"
+class SudokuProblem
+  attr_reader :data, :solver,
+    :unary_assertions, :binary_assertions
 
-class SudokuSolver
   def initialize(path)
-    data = Pathname(path).read
-    data = data.strip.split("\n").map do |line|
-      line.split.map{|c| c == "_" ? nil : c.to_i}
+    @data = Pathname(path).read.strip.split("\n").map do |line|
+      line.split.map { |c| c == '_' ? nil : c.to_i }
     end
-    @data = data
+
     @solver = Z3::Solver.new
+    @unary_assertions = [over_one, under_nine]
+    @binary_assertions = [same_as_cell]
   end
 
   def solve!
-    @cells = (0..8).map do |j|
+    cells = (0..8).map do |j|
       (0..8).map do |i|
-        cell_var(@data[j][i], i, j)
+        cell_var(data[j][i], i, j)
       end
     end
 
-    @cells.each do |row|
-      @solver.assert Z3.Distinct(*row)
+    cells.each do |row|
+      solver.assert Z3.Distinct(*row)
     end
-    @cells.transpose.each do |column|
-      @solver.assert Z3.Distinct(*column)
+    cells.transpose.each do |column|
+      solver.assert Z3.Distinct(*column)
     end
-    @cells.each_slice(3) do |rows|
+    cells.each_slice(3) do |rows|
       rows.transpose.each_slice(3) do |square|
-        @solver.assert Z3.Distinct(*square.flatten)
+        solver.assert Z3.Distinct(*square.flatten)
       end
     end
 
-    if @solver.check == :sat
-      @model = @solver.model
-      print_answer!
+    if satisfied?
+      model = solver.model
+      print_answer!(cells, model)
     else
-      puts "failed to solve"
+      puts 'failed to solve'
     end
   end
 
   private
 
+  def satisfied?
+    solver.check == :sat
+  end
+
+  def over_one
+    proc { |v| v >= 1 }
+  end
+
+  def under_nine
+    proc { |v| v <= 9 }
+  end
+
+  def same_as_cell
+    proc { |v, c| v == c }
+  end
+
   def cell_var(cell, i, j)
-    v = Z3.Int("cell[#{i+1},#{j+1}]")
-    @solver.assert v >= 1
-    @solver.assert v <= 9
-    @solver.assert v == cell if cell != nil
+    v = Z3.Int("cell[#{i + 1},#{j + 1}]")
+    unary_assertions.each do |predicate|
+      solver.assert predicate.call(v)
+    end
+    binary_assertions.each do |predicate|
+      next if cell.nil?
+      solver.assert predicate.call(v, cell)
+    end
     v
   end
 
-  def print_answer!
-    @cells.each do |row|
-      puts row.map{|v| @model[v]}.join(" ")
-    end
+  def print_answer!(cells, model)
+    cell_printer = proc { |r| puts r.map { |v| model[v] }.join(' ') }
+    cells.each(&cell_printer)
   end
 end
 
-path = ARGV[0] || Pathname(__dir__) + "sudoku-1.txt"
-SudokuSolver.new(path).solve!
+path = ARGV[0] || Pathname(__dir__) + 'sudoku-1.txt'
+SudokuProblem.new(path).solve!
