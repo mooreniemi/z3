@@ -26,11 +26,8 @@ class SudokuProblem
       end
     end
 
-    cells.each do |row|
-      solver.assert Z3.Distinct(*row)
-    end
-    cells.transpose.each do |column|
-      solver.assert Z3.Distinct(*column)
+    [cells, cells.transpose].each do |c|
+      c.each(&all_distinct)
     end
     cells.each_slice(3) do |rows|
       rows.transpose.each_slice(3) do |square|
@@ -43,6 +40,10 @@ class SudokuProblem
   end
 
   private
+
+  def all_distinct
+    proc {|roc| solver.assert Z3.Distinct(*roc) }
+  end
 
   def satisfied?
     solver.check == :sat
