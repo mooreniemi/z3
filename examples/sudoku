@@ -13,6 +13,8 @@ class SudokuProblem
     end
 
     @solver = Z3::Solver.new
+    # should be able to have a single formulas collection
+    # but cell is nil sometimes and that screws us up
     @unary_formulas = [over_one, under_nine]
     @binary_formulas = [same_as_cell]
   end
