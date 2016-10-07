@@ -36,12 +36,8 @@ class SudokuProblem
       end
     end
 
-    if satisfied?
-      model = solver.model
-      print_answer!(cells, model)
-    else
-      puts 'failed to solve'
-    end
+    return print_answer!(cells, solver.model) if satisfied?
+    puts 'failed to solve'
   end
 
   private
@@ -63,7 +59,7 @@ class SudokuProblem
   end
 
   def cell_var(cell, i, j)
-    v = Z3.Int("cell[#{i + 1},#{j + 1}]")
+    v = Z3.Int("cell[#{i + 1}, #{j + 1}]")
     unary_assertions.each do |predicate|
       solver.assert predicate.call(v)
     end
